@@ -1,0 +1,5 @@
+{
+  "name": "Cestovné Príkazy SK",
+  "description": "Aplikácia na evidenciu pracovných ciest, výpočet stravného a generovanie cestovných príkazov podľa slovenskej legislatívy.",
+  "requestFramePermissions": []
+}
