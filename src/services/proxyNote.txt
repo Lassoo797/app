@@ -1,0 +1,17 @@
+// Simple proxy server for Stat Office API to avoid CORS
+// Since the user is likely running this in a dev environment with a proxy setup like Vite
+// we need to configure vite.config.ts to proxy this request, OR
+// if this is a browser-only app, the external API must support CORS.
+//
+// The error "Tracking Prevention blocked access" and "400 Bad Request" suggests:
+// 1. CORS issues or browser blocking (Tracking Prevention).
+// 2. The API might require specific headers or parameters.
+//
+// However, the 400 Bad Request usually means the URL parameters are wrong or the format is not accepted.
+// The user provided URL: https://data.statistics.sk/api/v2/dataset/sp0207ts/all/all/all?lang=sk
+// Let's verify if this URL works directly.
+//
+// Also, since we are in a dev container, maybe we can use a server-side proxy function if available, 
+// but this is a React app.
+//
+// Let's modify vite.config.ts to add a proxy for /api/stat-office -> https://data.statistics.sk/api/v2

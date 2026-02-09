@@ -8,6 +8,13 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3010,
         host: '0.0.0.0',
+        proxy: {
+            '/stat-api': {
+                target: 'https://data.statistics.sk',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/stat-api/, ''),
+            }
+        }
       },
       plugins: [react()],
       define: {

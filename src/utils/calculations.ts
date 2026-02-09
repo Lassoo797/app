@@ -56,7 +56,7 @@ export const calculateTripCosts = (
         // In a real app, we might want to flag this.
         // For now, price remains 0 and cost will be 0.
         // The UI should alert the user.
-        console.warn(`No fuel price found for date ${tripDate.toISOString()} and type ${vehicle.fuelType}`);
+        // console.warn(`No fuel price found for date ${tripDate.toISOString()} and type ${vehicle.fuelType}`);
     }
     
     // Fuel Cost = (Distance / 100) * Consumption * Price

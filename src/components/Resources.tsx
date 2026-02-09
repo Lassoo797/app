@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Employee, Vehicle, Project, SavedLocation, Settings, Trip, FuelPriceRecord } from '../types';
 import { EntityListLayout, Modal, ConfirmModal, DetailRow } from './Shared';
-import { Users, Pencil, Trash2, Power, Eye, Car, Briefcase, MapPin, Save, ExternalLink, Calendar } from 'lucide-react';
+import { Users, Pencil, Trash2, Power, Eye, Car, Briefcase, MapPin, Save, ExternalLink, Calendar, RefreshCcw, AlertTriangle } from 'lucide-react';
 import { FUEL_LABELS } from '../constants';
 import { calculateTripCosts, formatCurrency } from '../utils/calculations';
-
+import { fetchFuelPricesFromAPI } from '../services/statOfficeService';
 import { useNotification } from './Notifications';
 
 // --- SEPARATE COMPONENTS TO FIX FOCUS LOSS ---
@@ -150,6 +150,14 @@ export const FuelPricesView = ({ fuelPrices, handlers }: any) => {
     const [formData, setFormData] = useState<Partial<FuelPriceRecord>>({});
     const [deleteId, setDeleteId] = useState<string | null>(null);
 
+    // Import State
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [importPeriod, setImportPeriod] = useState(1); // months back
+    const [isFetching, setIsFetching] = useState(false);
+    // Added state for conflicts and new records if you want to use them again or keep code clean
+    const [importConflicts, setImportConflicts] = useState<any[]>([]); 
+    const [importNewRecords, setImportNewRecords] = useState<Partial<FuelPriceRecord>[]>([]);
+
     const handleSave = async () => {
         if (!formData.validFrom || !formData.validTo) {
             notify("Dátumy Platné Od a Platné Do sú povinné.", "warning");
@@ -179,14 +187,127 @@ export const FuelPricesView = ({ fuelPrices, handlers }: any) => {
         return new Date(dateStr).toLocaleDateString('sk-SK');
     };
 
+    const handleImportFetch = async () => {
+        setIsFetching(true);
+        setImportConflicts([]);
+        setImportNewRecords([]);
+        try {
+            await fetchFuelPricesFromAPI(importPeriod, fuelPrices);
+            
+            // Backend handles update directly now.
+            notify("Aktualizácia dát prebehla úspešne.", "success");
+            setIsImportModalOpen(false);
+            
+            // Trigger refresh in parent component
+            if (handlers.refresh) {
+                // Short delay to ensure PB data is consistent/indexed if needed
+                setTimeout(() => {
+                    handlers.refresh();
+                }, 500);
+            }
+            
+        } catch (e: any) { // Type as any to access status
+            if (e.status === 502) {
+                notify("Chyba API Štatistického úradu (502). Skúste to neskôr alebo znížte obdobie.", "error");
+            } else {
+                notify("Chyba pri aktualizácii dát zo ŠÚSR.", "error");
+            }
+            console.error(e);
+        } finally {
+            setIsFetching(false);
+        }
+    };
+
+    const handleApplyImport = async () => {
+        try {
+            let countAdded = 0;
+            let countUpdated = 0;
+            
+            // 1. Add new records
+            for (const rec of importNewRecords) {
+                await handlers.add(rec);
+                countAdded++;
+            }
+
+            // 2. Resolve conflicts (User decided to apply changes if they are in this list? 
+            // Or we need selection? 
+            // Requirement: "Ak su nespravne vyskoci mi prehlad rozdielov a rozhodnem sa ci zmeny aplikujem."
+            // Let's assume pressing 'Apply' applies all presented changes. We can add checkboxes later if needed.
+            
+            for (const conf of importConflicts) {
+                // Update existing record
+                // We only update fields that changed? Or full object merge?
+                // conf.newRecord contains the API data.
+                // We should probably merge carefully.
+                await handlers.update(conf.existingRecord.id, {
+                    ...conf.newRecord,
+                    // Preserve ID and other fields not in API?
+                    // newRecord from API usually has price fields.
+                });
+                countUpdated++;
+            }
+            
+            notify(`Import dokončený. Pridané: ${countAdded}, Aktualizované: ${countUpdated}`, "success");
+            setIsImportModalOpen(false);
+            setImportConflicts([]);
+            setImportNewRecords([]);
+        } catch (e) {
+             notify("Chyba pri ukladaní importovaných dát.", "error");
+        }
+    };
+
     return (
         <div className="max-w-4xl mx-auto animate-fade-in mt-12">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Ceny PHM (Štatistický úrad)</h2>
-                <button onClick={() => { setEditingId('NEW'); setFormData({}); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-blue-900/20 flex items-center gap-2">
-                    <Calendar size={18} /> Pridať týždeň
-                </button>
+                <div className="flex gap-2">
+                    <button onClick={() => setIsImportModalOpen(true)} className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg font-bold flex items-center gap-2">
+                         <RefreshCcw size={18} /> Aktualizovať zo ŠÚSR
+                    </button>
+                    <button onClick={() => { setEditingId('NEW'); setFormData({}); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-blue-900/20 flex items-center gap-2">
+                        <Calendar size={18} /> Pridať týždeň
+                    </button>
+                </div>
             </div>
+
+            {/* IMPORT MODAL */}
+            {isImportModalOpen && (
+                <Modal title="Aktualizácia cien (Štatistický úrad SR)" onClose={() => setIsImportModalOpen(false)}>
+                    <div className="space-y-6">
+                        <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-100 dark:border-blue-900 text-sm text-blue-800 dark:text-blue-200">
+                             Dáta sú čerpané z verejnej databázy Štatistického úradu SR (DATAcube). 
+                             Doplnia sa chýbajúce týždne a skontrolujú existujúce záznamy.
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Obdobie spätne</label>
+                                <select 
+                                    className="w-full border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2 rounded"
+                                    value={importPeriod}
+                                    onChange={(e) => setImportPeriod(Number(e.target.value))}
+                                >
+                                    <option value={1}>1 Mesiac</option>
+                                    <option value={3}>3 Mesiace</option>
+                                    <option value={6}>Pol roka</option>
+                                    <option value={12}>1 Rok</option>
+                                </select>
+                            </div>
+                            <div className="flex justify-end">
+                                <button 
+                                    onClick={handleImportFetch} 
+                                    disabled={isFetching}
+                                    className="bg-blue-600 text-white px-6 py-2 rounded flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    {isFetching ? <RefreshCcw className="animate-spin" size={18}/> : <RefreshCcw size={18}/>}
+                                    {isFetching ? 'Načítavam...' : 'Spustiť aktualizáciu'}
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </Modal>
+            )}
 
             {editingId === 'NEW' && (
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl shadow-lg border border-blue-100 dark:border-slate-800 mb-6">

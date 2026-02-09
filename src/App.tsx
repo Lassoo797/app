@@ -97,9 +97,6 @@ const AppContent = () => {
     }, []);
 
     // --- CRUD Handlers ---
-    // Note: For simplicity, we're re-fetching all data on mutation.
-    // A more optimized approach would be to update state locally.
-
     const handleCrud = async (operation: Promise<any>, successMessage = 'Operácia bola úspešná') => {
         setLoading(true);
         try {
@@ -155,6 +152,7 @@ const AppContent = () => {
         add: (data: Partial<FuelPriceRecord>) => handleCrud(pb.collection('fuel_prices').create(data), 'Záznam o cene pridaný'),
         update: (id: string, data: Partial<FuelPriceRecord>) => handleCrud(pb.collection('fuel_prices').update(id, data), 'Záznam o cene aktualizovaný'),
         delete: (id: string) => handleCrud(pb.collection('fuel_prices').delete(id), 'Záznam o cene vymazaný'),
+        refresh: () => fetchData(), // Added refresh method
     };
 
     const renderContent = () => {
