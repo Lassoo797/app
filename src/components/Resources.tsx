@@ -258,14 +258,14 @@ export const FuelPricesView = ({ fuelPrices, handlers }: any) => {
 
     return (
         <div className="max-w-4xl mx-auto animate-fade-in mt-12">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Ceny PHM (Štatistický úrad)</h2>
-                <div className="flex gap-2">
-                    <button onClick={() => setIsImportModalOpen(true)} className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg font-bold flex items-center gap-2">
-                         <RefreshCcw size={18} /> Aktualizovať zo ŠÚSR
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Ceny PHM</h2>
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <button onClick={() => setIsImportModalOpen(true)} className="flex-1 sm:flex-none justify-center bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-4 py-2 rounded-lg font-bold flex items-center gap-2">
+                         <RefreshCcw size={18} /> <span className="hidden sm:inline">Aktualizovať</span>
                     </button>
-                    <button onClick={() => { setEditingId('NEW'); setFormData({}); }} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-blue-900/20 flex items-center gap-2">
-                        <Calendar size={18} /> Pridať týždeň
+                    <button onClick={() => { setEditingId('NEW'); setFormData({}); }} className="flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold shadow-lg shadow-blue-900/20 flex items-center gap-2">
+                        <Calendar size={18} /> Pridať
                     </button>
                 </div>
             </div>
@@ -325,7 +325,7 @@ export const FuelPricesView = ({ fuelPrices, handlers }: any) => {
                      <div className="p-8 text-center text-slate-500">Zatiaľ žiadne záznamy o cenách paliva. Použijú sa predvolené ceny z nastavení.</div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
+                        <table className="w-full text-left border-collapse min-w-[600px]">
                             <thead>
                                 <tr className="bg-slate-50 dark:bg-slate-800 text-slate-500 text-xs uppercase">
                                     <th className="p-4">Platnosť</th>

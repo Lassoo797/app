@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trip, Vehicle, Settings, Employee, SavedLocation, Project, Settlement, FuelPriceRecord } from './types';
 import pb from './services/db';
 import { DEFAULT_SETTINGS } from './constants';
-import { Sidebar, LoadingOverlay, ErrorDisplay } from './components/Shared';
+import { Sidebar, LoadingOverlay, ErrorDisplay, MobileHeader } from './components/Shared';
 import { Dashboard } from './components/Dashboard';
 import { TripsView, SettlementsView } from './components/TripManagement';
 import { EmployeesView, VehiclesView, ProjectsView, LocationsView, SettingsView, FuelPricesView } from './components/Resources';
@@ -14,6 +14,7 @@ const AppContent = () => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     // Theme Management
     const [darkMode, setDarkMode] = useState(() => {
@@ -190,12 +191,31 @@ const AppContent = () => {
         }
     };
 
+    const getActiveTitle = () => {
+         switch (activeTab) {
+            case 'dashboard': return 'Prehľad';
+            case 'trips': return 'Pracovné cesty';
+            case 'settlements': return 'Vyúčtovania';
+            case 'employees': return 'Zamestnanci';
+            case 'vehicles': return 'Vozidlá';
+            case 'projects': return 'Zákazky';
+            case 'locations': return 'Adresár';
+            case 'settings': return 'Nastavenia';
+            default: return 'Cestovné príkazy';
+         }
+    };
+
     return (
-        <div className={'min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-200 flex'}>
-            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} darkMode={darkMode} toggleDarkMode={() => setDarkMode(!darkMode)} />
-            <main className="flex-1 ml-64 p-8 overflow-y-auto h-screen">
-                {renderContent()}
-            </main>
+        <div className={'min-h-screen bg-slate-50 dark:bg-slate-950 transition-colors duration-200 flex flex-col lg:flex-row'}>
+            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} darkMode={darkMode} toggleDarkMode={() => setDarkMode(!darkMode)} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            
+            <div className="flex-1 flex flex-col h-screen overflow-hidden">
+                <MobileHeader onOpenSidebar={() => setSidebarOpen(true)} title={getActiveTitle()} />
+                
+                <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+                    {renderContent()}
+                </main>
+            </div>
         </div>
     );
 };

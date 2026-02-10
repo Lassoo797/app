@@ -1,4 +1,5 @@
-routerAdd("POST", "/api/update-fuel-prices", (c) => {
+routerAdd("POST", "/api/update-fuel-prices", (e) => {
+    // Premenoval som 'c' na 'e' (event), lebo to je technicky presnejšie v novej verzii
     
     function log(msg) {
         console.log(`[FuelUpdate] ${msg}`);
@@ -14,28 +15,55 @@ routerAdd("POST", "/api/update-fuel-prices", (c) => {
     }
 
     try {
-        log("Začínam aktualizáciu (Verzia: PB v0.23+ Fix)...");
+        // --- 1. ČÍTANIE VSTUPU Z URL (v0.23+ Safe Mode) ---
+        let months = 3; // Predvolená hodnota, ak čítanie zlyhá
+        
+        try {
+            // V novej verzii je 'e.request' štandardný Go http.Request
+            // Musíme sa prebiť cez URL a Query metódy
+            if (e.request && e.request.url) {
+                // Skúsime získať query parametre. 
+                // GoJa (JS engine) niekedy vyžaduje presný názov metódy (Query vs query).
+                const queryObj = e.request.url.query(); 
+                const val = queryObj.get("months");
+                
+                if (val) {
+                    const parsed = parseInt(val);
+                    if (!isNaN(parsed) && parsed > 0) {
+                        months = parsed;
+                        log(`Parameter prijatý: ${months} mesiacov`);
+                    }
+                }
+            }
+        } catch (err) {
+            log(`Nepodarilo sa prečítať parameter '?months=', používam default ${months}. Info: ${err}`);
+        }
 
-        // 1. Vygenerujeme týždne (posledných 8)
+        // Prepočet: 1 mesiac = cca 4.5 týždňa + rezerva
+        const WEEKS_LIMIT = Math.ceil(months * 4.5) + 2;
+
+        log(`Začínam aktualizáciu (Rozsah: ${WEEKS_LIMIT} týždňov)...`);
+
+        // --- 2. GENERUJEME TÝŽDNE ---
         const weeksToFetch = [];
         const today = new Date();
-        for (let i = 1; i <= 8; i++) {
+        for (let i = 1; i <= WEEKS_LIMIT; i++) {
             const d = new Date();
             d.setDate(today.getDate() - (i * 7)); 
             weeksToFetch.push(getWeekCode(d));
         }
         const weeksString = weeksToFetch.reverse().join(",");
         
-        // 2. Stiahnutie dát
+        // --- 3. DATA FETCH ---
         const dataUrl = `https://data.statistics.sk/api/v2/dataset/sp0207ts/${weeksString}/all?lang=sk`;
-        log(`URL: ${dataUrl}`);
+        // log(`URL: ${dataUrl}`);
 
         const headers = {
             "Accept": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         };
 
-        const res = $http.send({ url: dataUrl, method: "GET", headers: headers, timeout: 30 });
+        const res = $http.send({ url: dataUrl, method: "GET", headers: headers, timeout: 60 });
 
         if (res.statusCode !== 200) {
             throw new Error(`API chyba: ${res.statusCode}`);
@@ -43,21 +71,18 @@ routerAdd("POST", "/api/update-fuel-prices", (c) => {
 
         const json = res.json;
         if (!json.value || json.value.length === 0) {
-            return c.json(200, { success: true, message: "API vrátilo prázdne dáta." });
+            return e.json(200, { success: true, message: "API vrátilo prázdne dáta." });
         }
 
-        // 3. Identifikácia kódov
+        // --- 4. IDENTIFIKÁCIA KÓDOV ---
         const dims = json.dimension;
         let fuelDimId = json.id.find(id => id.toLowerCase().includes("ukaz")) || json.id[1];
         let timeDimId = json.id.find(id => id.toLowerCase().includes("tyz")) || json.id[0];
-
-        log(`Dimenzie -> Čas: ${timeDimId}, Palivo: ${fuelDimId}`);
 
         const fuelLabels = dims[fuelDimId].category.label; 
         const fuelIndices = dims[fuelDimId].category.index;
         const timeIndices = dims[timeDimId].category.index;
 
-        // Dynamické mapovanie kódov
         let code95 = null;
         let codeDiesel = null;
         let codeLPG = null;
@@ -69,19 +94,16 @@ routerAdd("POST", "/api/update-fuel-prices", (c) => {
             if (name.includes("lpg") || name.includes("skvapalnený")) codeLPG = code;
         }
 
-        // Fallback (ak by dynamika zlyhala)
         if (!code95) code95 = "FR02011"; 
         if (!codeDiesel) codeDiesel = "FR02012"; 
         if (!codeLPG) codeLPG = "FR02016"; 
-
-        log(`Mapovanie: Benzín=${code95}, Nafta=${codeDiesel}, LPG=${codeLPG}`);
 
         const dbMap = {};
         if (code95 && fuelIndices[code95] !== undefined) dbMap[code95] = "priceBenzin";
         if (codeDiesel && fuelIndices[codeDiesel] !== undefined) dbMap[codeDiesel] = "priceDiesel";
         if (codeLPG && fuelIndices[codeLPG] !== undefined) dbMap[codeLPG] = "priceLpg";
 
-        // 4. Spracovanie hodnôt
+        // --- 5. SPRACOVANIE ---
         const values = json.value;
         const processedWeeks = {};
         
@@ -118,7 +140,6 @@ routerAdd("POST", "/api/update-fuel-prices", (c) => {
             for (let code in dbMap) {
                 const fIdx = fuelIndices[code];
                 let flatIndex = 0;
-                
                 if (timeDimIdx === 0) {
                      flatIndex = (tIdx * sizeFuel) + fIdx;
                 } else {
@@ -134,9 +155,9 @@ routerAdd("POST", "/api/update-fuel-prices", (c) => {
             }
         });
 
-        // 5. Uloženie do DB (Oprava: saveRecord -> save)
+        // --- 6. ULOŽENIE ---
         let collection;
-        try { collection = $app.findCollectionByNameOrId("fuel_prices"); } catch(e) {}
+        try { collection = $app.findCollectionByNameOrId("fuel_prices"); } catch(ex) {}
 
         let stats = { created: 0, updated: 0 };
 
@@ -149,13 +170,7 @@ routerAdd("POST", "/api/update-fuel-prices", (c) => {
                     let existing = [];
                     try {
                         existing = txApp.findRecordsByFilter("fuel_prices", `validFrom ~ '${entry.validFrom.substring(0, 10)}'`);
-                    } catch(e) {
-                        // Ak je toto prázdne, je to OK (znamená to, že záznam neexistuje)
-                        // Ale pre istotu logneme, ak by to bola iná chyba
-                        if (!e.toString().includes("no rows")) {
-                             log(`Warning find: ${e}`);
-                        }
-                    }
+                    } catch(ex) {}
 
                     const record = existing.length > 0 ? existing[0] : null;
 
@@ -168,7 +183,7 @@ routerAdd("POST", "/api/update-fuel-prices", (c) => {
                             }
                         }
                         if (changed) { 
-                            txApp.save(record); // <--- OPRAVA: .save()
+                            txApp.save(record); 
                             stats.updated++; 
                         }
                     } else {
@@ -179,18 +194,18 @@ routerAdd("POST", "/api/update-fuel-prices", (c) => {
                         for (let field in entry.prices) {
                             newRec.set(field, entry.prices[field]);
                         }
-                        txApp.save(newRec); // <--- OPRAVA: .save()
+                        txApp.save(newRec);
                         stats.created++;
                     }
                 }
             });
         }
 
-        log(`Hotovo. Vytvorené: ${stats.created}, Aktualizované: ${stats.updated}`);
-        return c.json(200, { success: true, ...stats });
+        log(`Hotovo. Spracované: ${months} mesiacov. Vytvorené: ${stats.created}, Aktualizované: ${stats.updated}`);
+        return e.json(200, { success: true, ...stats });
 
     } catch (err) {
         log(`ERROR: ${err.toString()}`);
-        return c.json(500, { error: err.toString() });
+        return e.json(500, { error: err.toString() });
     }
 });

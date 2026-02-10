@@ -22,25 +22,23 @@ export const fetchFuelPricesFromAPI = async (
     // pb instance is now imported directly
 ): Promise<FetchResult> => {
     try {
-        // Call the backend hook
-        const response = await pb.send(PB_API_URL, {
+        // ZMENA: Posielame monthsBack ako parameter v URL (?months=...), nie v body.
+        // Je to spoľahlivejšie pre čítanie v JS hookoch.
+        const response = await pb.send(`${PB_API_URL}?months=${monthsBack}`, {
              method: 'POST',
-             body: { months: monthsBack }
+             body: {} // Body môže byť prázdne
         });
 
         console.log("Fuel prices update response:", response);
 
         // The backend handles the update directly. 
-        // We return empty diffs because the backend has already processed and saved the data.
         return { newRecords: [], conflicts: [] };
 
-    } catch (error: any) { // Add explicit type for error handling
+    } catch (error: any) {
         console.error("Error fetching fuel prices from backend:", error);
         
-        // Enhance error message for UI
         if (error.status === 404) {
              console.error("Endpoint not found. Did you restart PocketBase after adding the hook?");
-             // We rethrow so the component can show notification
         }
         throw error;
     }

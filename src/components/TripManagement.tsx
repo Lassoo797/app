@@ -4,7 +4,6 @@ import { calculateTripCosts, formatCurrency, formatDate, formatRoute } from '../
 import { generateTripPDF, generateSummaryPDF } from '../services/pdfService';
 import { Modal, DetailRow, ConfirmModal } from './Shared';
 import { Plus, Trash2, FileText, Lock, Eye, Pencil, CheckCircle, Gauge, AlertTriangle, ExternalLink, MapPin, X, Receipt, ParkingSquare, Bed, Coins } from 'lucide-react';
-
 import { useNotification } from './Notifications';
 
 // Helper to format Date or ISO string to datetime-local input value (YYYY-MM-DDTHH:mm)
@@ -297,13 +296,13 @@ const TripForm = ({
     };
 
     return (
-        <>
+        <div className="flex flex-col h-full overflow-y-auto">
             <datalist id="locs">
                 {locations.map((l) => <option key={l.id} value={l.address}>{l.name}</option>)}
             </datalist>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
                 <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Zamestnanec <span className="text-red-500">*</span></label>
                             <select className="w-full border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2 rounded dark:text-white" value={trip.employeeId || ''} onChange={e => handleFieldChange('employeeId', e.target.value)} required>
@@ -328,7 +327,7 @@ const TripForm = ({
                         </select>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Odchod <span className="text-red-500">*</span></label>
                             <input type="datetime-local" className="w-full border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2 rounded dark:text-white" value={trip.dateStart || ''} onChange={e => handleFieldChange('dateStart', e.target.value)} required />
@@ -432,11 +431,11 @@ const TripForm = ({
                     </div>
                 </div>
             </div>
-            <div className="mt-6 pt-4 border-t dark:border-slate-800 flex justify-end gap-3">
+            <div className="mt-6 pt-4 border-t dark:border-slate-800 flex justify-end gap-3 sticky bottom-0 bg-white dark:bg-slate-900 p-2">
                 <button onClick={onCancel} className="px-4 py-2 text-slate-500">Zrušiť</button>
                 <button onClick={onSave} className="bg-blue-600 text-white px-6 py-2 rounded font-bold shadow-lg shadow-blue-900/20">Uložiť cestu</button>
             </div>
-        </>
+        </div>
     );
 };
 
@@ -673,7 +672,7 @@ export const TripsView: React.FC<TripsViewProps> = ({ trips, handlers, employees
                     </div>
                 </div>
                 
-                 <div className="flex justify-end gap-3 pt-4">
+                 <div className="flex justify-end gap-3 pt-4 flex-wrap">
                      <button onClick={() => setViewingTrip(null)} className="px-4 py-2 text-slate-500">Zavrieť</button>
                      <button onClick={() => generateTripPDF(viewingTrip, v, e, p, settings, fuelPrices)} className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"><FileText size={16}/> Stiahnuť PDF</button>
                  </div>
@@ -683,9 +682,9 @@ export const TripsView: React.FC<TripsViewProps> = ({ trips, handlers, employees
 
     return (
         <div className="max-w-6xl mx-auto animate-fade-in">
-             <div className="flex justify-between items-center mb-6">
+             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Pracovné cesty</h2>
-                <button onClick={() => handleEdit()} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20"><Plus size={18}/> Nové cesta</button>
+                <button onClick={() => handleEdit()} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20 w-full sm:w-auto justify-center"><Plus size={18}/> Nová cesta</button>
             </div>
 
             <ConfirmModal isOpen={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={confirmDelete} title="Vymazať cestu?" message="Naozaj chcete vymazať túto pracovnú cestu?" />
@@ -835,9 +834,9 @@ export const SettlementsView: React.FC<SettlementsViewProps> = ({ settlements, s
 
     return (
         <div className="max-w-6xl mx-auto animate-fade-in">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Vyúčtovania</h2>
-                <button onClick={() => setIsCreating(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20"><Plus size={18}/> Nové vyúčtovanie</button>
+                <button onClick={() => setIsCreating(true)} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-lg shadow-blue-900/20 w-full sm:w-auto justify-center"><Plus size={18}/> Nové vyúčtovanie</button>
             </div>
 
             {isCreating && (
